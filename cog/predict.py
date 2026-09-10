@@ -8,6 +8,20 @@ DepthFlow on GitHub) -- not guessed. HorizontalPan below mirrors their
 "simulated camera pan" requirement.
 """
 import math
+import os
+
+# Must be set before any OpenGL/EGL-touching import (moderngl, depthflow) --
+# without this, the NVIDIA container runtime only exposes compute/CUDA
+# capability by default, and Mesa silently falls back to slow, memory-
+# hungry software rendering (llvmpipe) instead of the actual GPU. cog.yaml
+# has no field for setting a container-level ENV var, so this is the next
+# cheapest place to try it -- unconfirmed whether a process-level env var
+# set this late still works, since capability mounting may happen at
+# container-creation time instead. Worth testing before assuming a harder
+# fix (e.g. a custom base image) is needed.
+os.environ.setdefault("NVIDIA_DRIVER_CAPABILITIES", "all")
+os.environ.setdefault("__NV_PRIME_RENDER_OFFLOAD", "1")
+os.environ.setdefault("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
 
 from attrs import define
 from cog import BasePredictor, Input, Path as CogPath
