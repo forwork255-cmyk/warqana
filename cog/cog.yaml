@@ -1,0 +1,13 @@
+build:
+  gpu: true
+  python_version: "3.12"
+  system_packages:
+    - "libgl1"
+    - "libegl1"
+    - "libgles2"
+    - "libglvnd0"
+    - "ffmpeg"
+  python_packages:
+    - "depthflow"
+
+predict: "predict.py:Predictor"
