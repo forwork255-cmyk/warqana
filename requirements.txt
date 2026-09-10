@@ -1,0 +1,8 @@
+google-genai
+python-dotenv
+pillow
+replicate
+pypdf
+ebooklib
+beautifulsoup4
+anthropic
