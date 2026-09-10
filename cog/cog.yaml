@@ -10,4 +10,7 @@ build:
   python_packages:
     - "depthflow"
 
+environment:
+  - NVIDIA_DRIVER_CAPABILITIES=all
+
 predict: "predict.py:Predictor"
