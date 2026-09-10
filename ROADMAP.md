@@ -3,7 +3,43 @@
 Source of truth for what phase this project is on. Durable rules and
 architecture live in `CLAUDE.md`, not here.
 
-## Status: Phase 1, 2 & 3 complete, Phase 4 (motion/DepthFlow) not started
+## Status: Phase 1, 2 & 3 complete, Phase 4 (motion/DepthFlow) in progress
+
+**Architecture change mid-Phase-4**: Google Cloud Platform billing does not
+support Iraq (confirmed directly, not a UI bug) — blocks Cloud Run
+entirely. Switched the worker's GPU compute to **Replicate** instead (same
+provider as the image generation), deployed via Cog + a GitHub Actions
+remote build (no local Docker/GPU available on this machine). Full detail
+in `CLAUDE.md`'s Backend shape section. Firestore itself is still usable
+(free tier doesn't need billing), so only the compute piece moved.
+
+**Phase 4 progress so far** (if resuming after a context loss, start here):
+- GitHub repo created and pushed: https://github.com/forwork255-cmyk/warqana
+  (public). All Phase 1-3 code is there.
+- Replicate model page created: r8.im/forwork255-cmyk/warqana-depthflow
+  (private, Nvidia T4 GPU selected).
+- `REPLICATE_API_TOKEN` GitHub secret added (a dedicated token, separate
+  from the local dev one, named `github-actions-warqana` on Replicate).
+- `cog/cog.yaml` + `cog/predict.py` written: wraps DepthFlow's real
+  confirmed API (`DepthScene(backend="headless")` →
+  `scene.input(image=...)` → `scene.main(output=..., time=...)`, sourced
+  directly from BrokenSource/DepthFlow's own `examples/presets.py`, not
+  guessed) with a `HorizontalPan` motion preset matching the brief's
+  "simulated camera pan" requirement.
+- `.github/workflows/push-depthflow.yml` written: builds and pushes the
+  Cog model to Replicate on every push to `cog/`.
+- Pushed to `main` — this triggered the first build
+  (run: github.com/forwork255-cmyk/warqana/actions/runs/34428920114).
+  **As of this note, build result (success/failure) had not yet been
+  confirmed** — check that Actions page for current status before assuming
+  it worked. If it failed, the job logs there will show why; the DepthFlow
+  Docker/EGL setup in `cog.yaml` was assembled from moderngl's own headless
+  rendering docs (DepthFlow's own docs site returned 403 and couldn't be
+  fetched directly), so it may need iteration.
+- **Not yet done**: confirming the build succeeded, running a real test
+  render against one of the existing generated scene images
+  (`output/scenes/test_drawing_pipeline_ch3_scene*.png`), and wiring
+  `drawing_pass.py`-equivalent code to actually call the deployed model.
 
 **Pre-Phase-3 review fixes** (`claude_client.py`): every Claude call
 (chapter_detection, understanding_pass, name_resolution) was calling the
@@ -31,10 +67,12 @@ confirm the concept lands before investing real development time.
 - [ ] Explicit style guide: turn the manuscript-style description into a
       concrete, reusable prompt spec, not left to per-scene improvisation.
 - [x] Backend shape: Streamlit UI (matching the Arabic Research Assistant)
-      stays the reader-facing app; a separate worker (Google Cloud Run Job,
-      L4 GPU, scale-to-zero) handles the understanding pass, image
-      generation, and DepthFlow rendering, coordinated via a Firestore job
-      queue. Full rationale in `CLAUDE.md`.
+      stays the reader-facing app; a separate worker handles the
+      understanding pass, image generation, and DepthFlow rendering,
+      coordinated via a Firestore job queue. **Originally planned as a
+      Google Cloud Run Job — changed to Replicate (Cog-based custom
+      model) after discovering Google Cloud billing doesn't support Iraq.**
+      Full rationale and current state in `CLAUDE.md`.
 - [x] Data model: Firestore schema for books, chapters, story bible
       (characters/locations), and per-book/chapter/style processing state.
       Ownership-based privacy design — full schema in `CLAUDE.md`.
@@ -100,8 +138,9 @@ confirm the concept lands before investing real development time.
 
 ## Phase 4 — Motion pipeline (the differentiator)
 
-- [ ] Integrate DepthFlow (depth map → parallax video) as a rendering job
-      run by the Phase 1 worker service.
+- [~] Integrate DepthFlow (depth map → parallax video) as a rendering job
+      run by the Phase 1 worker service. In progress — see the detailed
+      progress note under Status above before resuming this.
 - [ ] Video storage: private per user for non-public-domain books;
       shared/cached for the public-domain tier.
 - [ ] Processing lock keyed on (book, chapter, style) so concurrent

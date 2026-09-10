@@ -75,14 +75,37 @@ rendering, coordinated through a Firestore job queue: Streamlit writes a job
 record (book + chapter + style, status: pending), the worker picks it up and
 writes results/status back, Streamlit polls for status. The job record
 itself doubles as the processing lock from the Concurrency section below.
-The worker runs as a **Google Cloud Run Job** (not a Cloud Run *service* —
-Jobs scale to zero and bill only for actual seconds run, not 24/7), with an
-NVIDIA L4 GPU attached for DepthFlow rendering, in the same Google Cloud
-project as Firestore. Rough estimated cost per newly-generated chapter
-(image generation + GPU render + text calls, one-time, then cached): ~$0.25-
-$0.50 — this is an estimate pending a real timed test, not a confirmed
-number. No VPS, no always-on server, no message broker (Kafka/RabbitMQ) —
-overkill for expected traffic and budget at this stage.
+**Superseded, kept for history**: the worker was originally planned as a
+Google Cloud Run Job with an NVIDIA L4 GPU. **Changed because Google Cloud
+Platform billing does not currently support Iraq** — confirmed directly
+(the country isn't offered when setting up Cloud Billing), not a UI glitch.
+This blocks Cloud Run and any Firestore usage beyond its free tier, but NOT
+Google AI Studio (a separate signup path) or Firestore's free "Spark" tier
+(no billing account needed) — both still usable.
+
+**Current plan: DepthFlow runs as a custom model on Replicate** (the same
+provider already used for Flux image generation) instead of Google Cloud
+Run. Packaged via Cog (Replicate's model-packaging tool) and deployed
+through a GitHub Actions workflow (`replicate/setup-cog`) that builds and
+pushes the model remotely — avoids needing local Docker/GPU, which this
+dev machine doesn't have. Same scale-to-zero cost behavior as the original
+Cloud Run plan: $0 while idle, billed per-second only while actually
+rendering (confirmed: Replicate deployments scale to zero by default,
+unless `min_instances` is explicitly set above 0, which this project
+doesn't do). Cheapest GPU tier (Nvidia T4, ~$0.81/hr, ~$0.000225/sec) was
+selected on the model's Replicate page. Rough estimated cost per
+newly-generated chapter (image generation + GPU render + text calls,
+one-time, then cached): ~$0.25-$0.50 — still an estimate pending a real
+timed test, not a confirmed number.
+
+Code lives in `warqana` GitHub repo (public):
+https://github.com/forwork255-cmyk/warqana — `cog/cog.yaml` +
+`cog/predict.py` define the model; `.github/workflows/push-depthflow.yml`
+builds/pushes it on every push to `cog/`. Replicate model page:
+r8.im/forwork255-cmyk/warqana-depthflow (private, Nvidia T4).
+
+No VPS, no always-on server, no message broker (Kafka/RabbitMQ) — overkill
+for expected traffic and budget at this stage.
 
 **Firestore schema.**
 - `users/{user_id}` — auth (bcrypt hash), subscription tier, daily
