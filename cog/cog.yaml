@@ -2,10 +2,11 @@ build:
   gpu: true
   python_version: "3.12"
   system_packages:
-    - "libgl1"
-    - "libegl1"
-    - "libgles2"
     - "libglvnd0"
+    - "libglvnd-dev"
+    - "libegl1-mesa-dev"
+    - "libvulkan1"
+    - "libvulkan-dev"
     - "ffmpeg"
   python_packages:
     - "depthflow"
