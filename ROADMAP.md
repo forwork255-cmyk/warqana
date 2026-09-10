@@ -36,10 +36,37 @@ in `CLAUDE.md`'s Backend shape section. Firestore itself is still usable
   Docker/EGL setup in `cog.yaml` was assembled from moderngl's own headless
   rendering docs (DepthFlow's own docs site returned 403 and couldn't be
   fetched directly), so it may need iteration.
-- **Not yet done**: confirming the build succeeded, running a real test
-  render against one of the existing generated scene images
-  (`output/scenes/test_drawing_pipeline_ch3_scene*.png`), and wiring
-  `drawing_pass.py`-equivalent code to actually call the deployed model.
+- **First build succeeded**, but the actual test render **crashed**:
+  `cog.server.exceptions.FatalWorkerException: ... exitcode -11`. The real
+  clue in the log: `OpenGL Renderer: llvmpipe` — DepthFlow was using Mesa's
+  *software* renderer, never touching the GPU at all, and almost certainly
+  crashed from memory pressure as a result.
+- **Two fix attempts failed, same error both times**:
+  1. Tried `environment: [NVIDIA_DRIVER_CAPABILITIES=all]` in `cog.yaml` —
+     **build itself failed validation**: `"Additional property environment
+     is not allowed"`. Cog has no top-level `environment` key (confirmed
+     via cog.run/yaml/ docs) — reverted.
+  2. Tried setting `os.environ["NVIDIA_DRIVER_CAPABILITIES"]` etc. at the
+     top of `predict.py` instead (process-level, before any GL import) —
+     build succeeded, but the render **still showed `llvmpipe`, still
+     crashed**. This suggests GPU capability mounting happens at container-
+     creation time, before Python runs — too late to fix from inside the
+     predictor.
+- **Third attempt, just pushed, not yet confirmed**: found DepthFlow's own
+  author's real working deployment
+  (huggingface.co/spaces/BrokenSource/DepthFlow, files: `packages.txt` +
+  `README.md`) and copied their actual system packages exactly —
+  critically, **Vulkan libraries** (`libvulkan1`, `libvulkan-dev`), which
+  our config never had at all. Also `libglvnd-dev` and `libegl1-mesa-dev`
+  (dev/headers variants, not just the runtime libs we had). If this also
+  fails with the same `llvmpipe` symptom, the next thing to check is
+  whether Replicate's container runtime supports GPU *graphics* capability
+  at all (as opposed to just CUDA/compute) — that would mean this approach
+  needs to change more fundamentally (e.g. a custom base image, or asking
+  Replicate support directly), not just another package/env tweak.
+- **Not yet done**: confirming this build succeeded AND the render actually
+  works (not just builds), then wiring `drawing_pass.py`-equivalent code
+  to call the deployed model for real, from a real chapter's scenes.
 
 **Pre-Phase-3 review fixes** (`claude_client.py`): every Claude call
 (chapter_detection, understanding_pass, name_resolution) was calling the
