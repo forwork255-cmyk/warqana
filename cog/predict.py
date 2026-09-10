@@ -6,22 +6,15 @@ API confirmed from DepthFlow's own examples/presets.py (BrokenSource/
 DepthFlow on GitHub) -- not guessed. HorizontalPan below mirrors their
 "Horizontal" preset (simple left-right parallax), matching the brief's
 "simulated camera pan" requirement.
+
+Renders on CPU (Mesa llvmpipe software rendering) -- confirmed directly by
+Replicate support (case #02321173) that Cog's GPU tier does not expose
+OpenGL/EGL graphics capability for custom models, only CUDA/compute. No
+env var or package fix inside this container can change that. Keeping
+resolution/duration low (below) is a deliberate tradeoff to avoid the
+out-of-memory crash software rendering otherwise hits, not a bug.
 """
 import math
-import os
-
-# Must be set before any OpenGL/EGL-touching import (moderngl, depthflow) --
-# without this, the NVIDIA container runtime only exposes compute/CUDA
-# capability by default, and Mesa silently falls back to slow, memory-
-# hungry software rendering (llvmpipe) instead of the actual GPU. cog.yaml
-# has no field for setting a container-level ENV var, so this is the next
-# cheapest place to try it -- unconfirmed whether a process-level env var
-# set this late still works, since capability mounting may happen at
-# container-creation time instead. Worth testing before assuming a harder
-# fix (e.g. a custom base image) is needed.
-os.environ.setdefault("NVIDIA_DRIVER_CAPABILITIES", "all")
-os.environ.setdefault("__NV_PRIME_RENDER_OFFLOAD", "1")
-os.environ.setdefault("__GLX_VENDOR_LIBRARY_NAME", "nvidia")
 
 from attrs import define
 from cog import BasePredictor, Input, Path as CogPath
@@ -44,13 +37,23 @@ class Predictor(BasePredictor):
         self,
         image: CogPath = Input(description="Input scene image to animate"),
         duration: float = Input(
-            description="Video duration in seconds", default=5.0, ge=1.0, le=15.0
+            description="Video duration in seconds", default=3.0, ge=1.0, le=15.0
         ),
     ) -> CogPath:
         scene = HorizontalPan(backend="headless")
         scene.input(image=str(image))
 
         output_path = "/tmp/output.mp4"
-        scene.main(output=output_path, time=duration)
+        # Low resolution/quality/no supersampling -- software rendering has
+        # no real GPU memory to work with, so this stays deliberately small
+        # until real GPU rendering becomes possible some other way.
+        scene.main(
+            output=output_path,
+            time=duration,
+            width=480,
+            height=270,
+            quality=50,
+            ssaa=1,
+        )
 
         return CogPath(output_path)

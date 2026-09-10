@@ -52,21 +52,33 @@ in `CLAUDE.md`'s Backend shape section. Firestore itself is still usable
      crashed**. This suggests GPU capability mounting happens at container-
      creation time, before Python runs — too late to fix from inside the
      predictor.
-- **Third attempt, just pushed, not yet confirmed**: found DepthFlow's own
-  author's real working deployment
-  (huggingface.co/spaces/BrokenSource/DepthFlow, files: `packages.txt` +
-  `README.md`) and copied their actual system packages exactly —
-  critically, **Vulkan libraries** (`libvulkan1`, `libvulkan-dev`), which
-  our config never had at all. Also `libglvnd-dev` and `libegl1-mesa-dev`
-  (dev/headers variants, not just the runtime libs we had). If this also
-  fails with the same `llvmpipe` symptom, the next thing to check is
-  whether Replicate's container runtime supports GPU *graphics* capability
-  at all (as opposed to just CUDA/compute) — that would mean this approach
-  needs to change more fundamentally (e.g. a custom base image, or asking
-  Replicate support directly), not just another package/env tweak.
-- **Not yet done**: confirming this build succeeded AND the render actually
-  works (not just builds), then wiring `drawing_pass.py`-equivalent code
-  to call the deployed model for real, from a real chapter's scenes.
+- **Third attempt**: matched DepthFlow's own author's real working
+  deployment (huggingface.co/spaces/BrokenSource/DepthFlow's
+  `packages.txt`) exactly, including Vulkan libraries — **also failed,
+  identical `llvmpipe` symptom.**
+- **Confirmed definitively via Replicate support (case #02321173,
+  2026-09-11)**: this is a real platform limitation, not a config problem.
+  Direct quote: "Cog's GPU configuration supports CUDA/cuDNN workloads.
+  Replicate's hardware settings do not provide a user-configurable option
+  for requesting OpenGL/EGL graphics capabilities... there is currently no
+  documented way to request NVIDIA graphics capability for a custom model
+  on Replicate." GPU capability is locked in when the container starts,
+  before any code runs — no package or env var fix from inside the
+  predictor can ever change this. All three prior attempts were destined
+  to fail for this reason.
+- **Replicate's suggested alternatives** (their wording):
+  1. Keep rendering CPU-based, reduce memory usage so it stops crashing.
+  2. Rewrite using a CUDA-based rendering implementation that doesn't need
+     an OpenGL/EGL context (i.e. not DepthFlow's own shader engine).
+  3. Run somewhere you control the GPU container runtime yourself (reopens
+     the hosting-provider/Iraq-billing question from earlier).
+- **Next step decided**: try #1 first (cheapest, no architecture change) —
+  reduce output resolution/duration to shrink software-render memory
+  footprint below the crash threshold. Accept slower CPU rendering for now;
+  revisit speed later once the pipeline actually produces working video.
+- **Not yet done**: confirming the memory-reduction fix actually works,
+  then wiring `drawing_pass.py`-equivalent code to call the deployed model
+  for real, from a real chapter's scenes.
 
 **Pre-Phase-3 review fixes** (`claude_client.py`): every Claude call
 (chapter_detection, understanding_pass, name_resolution) was calling the
