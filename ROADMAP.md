@@ -92,9 +92,31 @@ in `CLAUDE.md`'s Backend shape section. Firestore itself is still usable
   OpenGL/EGL) and #3 (a host with real GPU/graphics control). Both are
   real architecture decisions, not quick fixes — worth a deliberate
   choice with the user next, not another blind config attempt.
-- **Not yet done**: deciding between #2/#3 above, then wiring
-  `drawing_pass.py`-equivalent code to call whatever ends up working, from
-  a real chapter's scenes.
+- **Free proof-of-concept on Google Colab (2026-09-11)**: ran the exact
+  same code (DepthFlow + `HorizontalPan`) on Colab's free-tier GPU
+  environment. **It worked** — full 300-frame render completed
+  successfully (no crash), on CPU/software rendering (`llvmpipe LLVM
+  20.1.2` — notably a *newer* Mesa/LLVM version than Replicate's `15.0.7`).
+  This proves the code/pipeline itself is correct; the crash is specific
+  to Replicate's particular container environment. **New concrete lead**:
+  the working (Colab) and crashing (Replicate) environments differ in
+  Mesa/LLVM version — worth trying to pin a newer Mesa version in
+  `cog.yaml` before jumping to a bigger architecture change.
+- **Real finding from comparing rendered output on two different input
+  styles**: the manuscript-style test image showed no visible parallax
+  between frames (foreground and background moved together) — the modern/
+  realistic-style test image showed clear, real parallax (a foreground
+  person visibly shifting relative to the background). **The deliberately
+  flat manuscript art style works against the depth-parallax
+  differentiator** — DepthFlow's depth estimation has little to work with
+  on a flat illustration. Not a blocker, but a real tension worth keeping
+  in mind when refining the style guide later (subtle depth/layering cues
+  within the manuscript aesthetic would likely help the motion effect).
+- **Not yet done**: try pinning a newer Mesa version on Replicate first
+  (cheap, informed by the Colab finding, no new accounts/cost) before
+  deciding between a full CUDA-rendering rewrite or a different GPU host.
+  Then wire `drawing_pass.py`-equivalent code to call whatever ends up
+  working, from a real chapter's scenes.
 
 **Pre-Phase-3 review fixes** (`claude_client.py`): every Claude call
 (chapter_detection, understanding_pass, name_resolution) was calling the
