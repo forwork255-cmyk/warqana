@@ -19,7 +19,7 @@ load_dotenv()
 if not os.environ.get("REPLICATE_API_TOKEN"):
     raise SystemExit("REPLICATE_API_TOKEN not found in .env")
 
-MODEL_VERSION = "forwork255-cmyk/warqana-depthflow:e829832edfeece018f1c9cf4c3f03ec59cf49e63b8f5cf3591ec8fed5e6b9d12"
+MODEL_VERSION = "forwork255-cmyk/warqana-depthflow:366df4f40e1f4b2085bf8f8ef2a26c97a97718e2b9169f8267e60be3236c077d"
 INPUT_IMAGE = Path(__file__).parent.parent / "output" / "scenes" / "test_drawing_pipeline_ch3_scene0.png"
 OUTPUT_DIR = Path(__file__).parent.parent / "output" / "videos"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

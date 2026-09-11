@@ -112,11 +112,41 @@ in `CLAUDE.md`'s Backend shape section. Firestore itself is still usable
   on a flat illustration. Not a blocker, but a real tension worth keeping
   in mind when refining the style guide later (subtle depth/layering cues
   within the manuscript aesthetic would likely help the motion effect).
-- **Not yet done**: try pinning a newer Mesa version on Replicate first
-  (cheap, informed by the Colab finding, no new accounts/cost) before
-  deciding between a full CUDA-rendering rewrite or a different GPU host.
-  Then wire `drawing_pass.py`-equivalent code to call whatever ends up
-  working, from a real chapter's scenes.
+- **Mesa-pinning attempt (2026-09-11), fully exhausted**: tried installing
+  a newer Mesa via the `kisak-mesa` PPA in `cog.yaml`. Took 3 build
+  iterations to even get right (a multi-line YAML syntax error, then
+  `--only-upgrade` silently doing nothing since the base image's Mesa
+  isn't apt-tracked) — the 3rd attempt (plain `apt-get install`) **built
+  successfully** but the render **still showed the identical `llvmpipe
+  LLVM 15.0.7` and identical crash**, meaning the apt-installed Mesa isn't
+  what's actually used at render time. Most likely explanation: the
+  Python rendering library (`moderngl`/`glcontext`) ships its own bundled
+  Mesa binary for portability, bypassing the system's apt-managed Mesa
+  entirely — no `cog.yaml`-level package fix can reach that.
+- **DECISION (2026-09-11): stop iterating on Replicate for this specific
+  crash.** Five different fix attempts (env var in cog.yaml, env var in
+  predict.py, matching packages, memory reduction, Mesa version pinning)
+  have all failed with the identical symptom. The one thing actually
+  *proven* to work is Colab — a full VM environment, not a locked-down
+  inference container like Replicate/Cog. **Next session should start
+  with**: set up a real GPU VM host (Vast.ai or RunPod — Vast.ai accepts
+  crypto payment, worth checking specifically for Iraq; RunPod untested)
+  instead of continuing to patch Replicate's Cog deployment. This is a
+  real architecture decision requiring a new provider account, not a
+  quick config fix — don't attempt more `cog.yaml` tweaks without new
+  evidence first.
+- **What to keep from this work**: `cog/predict.py`'s actual DepthFlow
+  logic (the `HorizontalPan` class, the confirmed real API usage) is
+  correct and reusable regardless of where it ends up running — proven
+  twice on Colab. Only the *deployment platform* is the open problem, not
+  the rendering code itself.
+- **Also unresolved from earlier this session**: the flat manuscript
+  style produces little visible parallax (see finding above) — worth
+  revisiting once rendering is unblocked, not urgent before then.
+- **Not yet done**: pick and set up a real GPU VM host, confirm DepthFlow
+  works there for real (not just Colab's free tier), then wire
+  `drawing_pass.py`-equivalent code to call it from a real chapter's
+  scenes.
 
 **Pre-Phase-3 review fixes** (`claude_client.py`): every Claude call
 (chapter_detection, understanding_pass, name_resolution) was calling the
