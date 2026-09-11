@@ -72,13 +72,29 @@ in `CLAUDE.md`'s Backend shape section. Firestore itself is still usable
      an OpenGL/EGL context (i.e. not DepthFlow's own shader engine).
   3. Run somewhere you control the GPU container runtime yourself (reopens
      the hosting-provider/Iraq-billing question from earlier).
-- **Next step decided**: try #1 first (cheapest, no architecture change) —
-  reduce output resolution/duration to shrink software-render memory
-  footprint below the crash threshold. Accept slower CPU rendering for now;
-  revisit speed later once the pipeline actually produces working video.
-- **Not yet done**: confirming the memory-reduction fix actually works,
-  then wiring `drawing_pass.py`-equivalent code to call the deployed model
-  for real, from a real chapter's scenes.
+- **Tried #1 (memory reduction)**: two build/infra issues hit along the way
+  first (unrelated to rendering) — a private-repo visibility change briefly
+  blocked automated build monitoring (reverted to public), and a genuine
+  "No space left on device" build failure (GitHub's runner disk filled by
+  PyTorch's CUDA dependencies; fixed by freeing ~30GB of unused preinstalled
+  toolchains before the build step). Once both were resolved and the actual
+  low-resolution render ran (480x270, quality 50, no supersampling, 3s
+  instead of 5s): **still failed, identical `llvmpipe` / exitcode -11
+  symptom, same ~90-100s timing as the full-resolution attempts.**
+- **This rules out memory size as the actual cause** — a ~10x smaller
+  render behaving identically to the original strongly suggests a hard
+  crash/incompatibility in Mesa's software rasterizer hitting something in
+  DepthFlow's shader code, not a resource ceiling. Replicate's own email
+  hinted at this: "the exit code alone does not confirm an out-of-memory
+  failure."
+- **Where this leaves Phase 4**: all three of Replicate's suggested paths
+  have now been tried or ruled out except #2 (CUDA-based rendering, no
+  OpenGL/EGL) and #3 (a host with real GPU/graphics control). Both are
+  real architecture decisions, not quick fixes — worth a deliberate
+  choice with the user next, not another blind config attempt.
+- **Not yet done**: deciding between #2/#3 above, then wiring
+  `drawing_pass.py`-equivalent code to call whatever ends up working, from
+  a real chapter's scenes.
 
 **Pre-Phase-3 review fixes** (`claude_client.py`): every Claude call
 (chapter_detection, understanding_pass, name_resolution) was calling the
