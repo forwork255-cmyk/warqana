@@ -8,6 +8,16 @@ build:
     - "libvulkan1"
     - "libvulkan-dev"
     - "ffmpeg"
+    - "software-properties-common"
+  run:
+    # Colab (working, no crash) uses a newer Mesa/LLVM (20.1.2) than
+    # Replicate's default (15.0.7, crashes). Trying to match that here --
+    # if this PPA doesn't support the base OS release, this step fails
+    # cleanly and quickly rather than crashing at render time.
+    - command: |
+        add-apt-repository -y ppa:kisak/kisak-mesa
+        apt-get update
+        apt-get install -y --only-upgrade libgl1-mesa-dri libglx-mesa0
   python_packages:
     - "depthflow"
 
