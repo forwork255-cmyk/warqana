@@ -16,7 +16,8 @@ build:
   run:
     - "add-apt-repository -y ppa:kisak/kisak-mesa"
     - "apt-get update"
-    - "apt-get install -y --only-upgrade libgl1-mesa-dri libglx-mesa0"
+    - "apt-get install -y libgl1-mesa-dri libglx-mesa0"
+    - "dpkg -l | grep -i mesa"
   python_packages:
     - "depthflow"
 
